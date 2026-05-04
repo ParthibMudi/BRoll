@@ -1,0 +1,77 @@
+{
+  "video_id": "5127cde4",
+  "segments": [
+    {
+      "id": "seg_001",
+      "start": 0,
+      "end": 39,
+      "text": "Introduction to network configuration in cloud computing; comparison of tools in AWS and Azure."
+    },
+    {
+      "id": "seg_002",
+      "start": 40,
+      "end": 66,
+      "text": "The importance of networking alongside storage and computation for hosting secure and scalable websites."
+    },
+    {
+      "id": "seg_003",
+      "start": 66,
+      "end": 80,
+      "text": "The necessity of private networks and subnetting to separate public-facing websites from secure databases and payment systems."
+    },
+    {
+      "id": "seg_004",
+      "start": 80,
+      "end": 113,
+      "text": "Defining AWS VPC (Virtual Private Cloud) and Azure VNet as tools for creating isolated, scalable networks."
+    },
+    {
+      "id": "seg_005",
+      "start": 113,
+      "end": 132,
+      "text": "How VPC and VNet ensure resources communicate privately and scale according to demand."
+    },
+    {
+      "id": "seg_006",
+      "start": 132,
+      "end": 155,
+      "text": "Introduction to CIDR (Classless Inter-Domain Routing) as the foundation for IP allocation in the cloud."
+    },
+    {
+      "id": "seg_007",
+      "start": 155,
+      "end": 179,
+      "text": "The critical role of subnetting in dividing internal networks based on specific organizational requirements."
+    },
+    {
+      "id": "seg_008",
+      "start": 180,
+      "end": 200,
+      "text": "Managing inbound and outbound traffic through Internet Gateways and NAT Gateways."
+    },
+    {
+      "id": "seg_009",
+      "start": 201,
+      "end": 226,
+      "text": "Security implementation using Security Groups, NACLs, or NSGs to block vulnerabilities and DOS attacks."
+    },
+    {
+      "id": "seg_010",
+      "start": 226,
+      "end": 251,
+      "text": "Handling remote access and communication between regions or data centers using VPNs and private connections."
+    },
+    {
+      "id": "seg_011",
+      "start": 251,
+      "end": 260,
+      "text": "The use of routing tables to direct data packets within the network infrastructure."
+    },
+    {
+      "id": "seg_012",
+      "start": 262,
+      "end": 289,
+      "text": "Conclusion and reference to future detailed videos on CIDR and subnetting logic."
+    }
+  ]
+}

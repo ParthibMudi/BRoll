@@ -1,0 +1,63 @@
+{
+  "video_id": "64714e5a",
+  "broll_items": [
+    {
+      "id": "broll_001",
+      "start": 66.0,
+      "end": 80.0,
+      "source_segment_ids": [
+        "seg_003"
+      ],
+      "selected_text": "The necessity of private networks and subnetting to separate public-facing websites from secure databases and payment systems.",
+      "template_type": "problem_solution",
+      "title": "Private Networks and Subnetting",
+      "problem": "Public-facing websites and secure databases/payment systems are vulnerable to attacks.",
+      "solution": "Private networks and subnetting separate public-facing websites from secure databases and payment systems, enhancing security.",
+      "reason_for_selection": "This segment explains a critical concept that is easier to understand with visual aids, such as diagrams showing the separation of public and private networks."
+    },
+    {
+      "id": "broll_002",
+      "start": 201.0,
+      "end": 226.0,
+      "source_segment_ids": [
+        "seg_009"
+      ],
+      "selected_text": "Security implementation using Security Groups, NACLs, or NSGs to block vulnerabilities and DOS attacks.",
+      "template_type": "four_point_list",
+      "title": "Security Implementation",
+      "points": [
+        "Security Groups",
+        "NACLs",
+        "NSGs",
+        "Firewall Configuration"
+      ],
+      "reason_for_selection": "This segment lists different security measures that can be visually represented as a list or a diagram, making it easier for viewers to understand and compare the options."
+    },
+    {
+      "id": "broll_003",
+      "start": 251.0,
+      "end": 260.0,
+      "source_segment_ids": [
+        "seg_010"
+      ],
+      "selected_text": "Handling remote access and communication between regions or data centers using VPNs and private connections.",
+      "template_type": "problem_solution",
+      "title": "Remote Access and Communication",
+      "problem": "Remote access and communication between regions or data centers are vulnerable to security threats.",
+      "solution": "VPNs and private connections provide secure remote access and communication between regions or data centers.",
+      "reason_for_selection": "This segment presents a problem and solution that can be visually explained using diagrams or animations, making it easier for viewers to understand the concept."
+    }
+  ],
+  "skipped_segments": [
+    {
+      "segment_id": "seg_001",
+      "text": "Introduction to network configuration in cloud computing; comparison of tools in AWS and Azure.",
+      "reason": "This segment is an introduction and does not contain key insights, lists, or concepts that require visual explanation."
+    },
+    {
+      "segment_id": "seg_002",
+      "text": "The importance of networking alongside storage and computation for hosting secure and scalable websites.",
+      "reason": "This segment is a simple statement and does not contain key insights, lists, or concepts that require visual explanation."
+    }
+  ]
+}

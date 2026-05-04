@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BRollAI — Smart Video Explainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #080810;
+    --surface:  #0f0f1e;
+    --card:     #13131f;
+    --border:   #1e1e35;
+    --accent:   #6c63ff;
+    --accent2:  #00d9a6;
+    --danger:   #ff6b6b;
+    --warn:     #ffd93d;
+    --text:     #e8e6ff;
+    --muted:    #6b6990;
+    --mono:     'Space Mono', monospace;
+    --sans:     'Syne', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(108,99,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(108,99,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* Glow orbs */
+  body::after {
+    content: '';
+    position: fixed; top: -20%; left: -10%; z-index: 0;
+    width: 60vw; height: 60vw;
+    background: radial-gradient(circle, rgba(108,99,255,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+
+  /* ─── HEADER ─────────────────────────────────────── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 28px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .logo-text {
+    font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+  }
+  .logo-text span { color: var(--accent2); }
+  .badge {
+    font-family: var(--mono); font-size: 10px;
+    background: rgba(108,99,255,0.15); border: 1px solid rgba(108,99,255,0.3);
+    color: var(--accent); padding: 3px 10px; border-radius: 20px;
+    letter-spacing: 1px;
+  }
+
+  /* ─── API KEY BAR ────────────────────────────────── */
+  .api-bar {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 20px;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 32px;
+  }
+  .api-bar label { font-size: 12px; color: var(--muted); white-space: nowrap; font-family: var(--mono); }
+  .api-bar input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--mono); font-size: 13px;
+    padding: 8px 12px; border-radius: 8px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .api-bar input:focus { border-color: var(--accent); }
+  .key-status { font-size: 11px; font-family: var(--mono); color: var(--accent2); }
+
+  /* ─── PIPELINE STEPS ─────────────────────────────── */
+  .pipeline {
+    display: flex; gap: 0; align-items: center;
+    margin-bottom: 40px; overflow-x: auto; padding-bottom: 8px;
+  }
+  .step-pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; white-space: nowrap;
+    font-size: 13px; font-weight: 600;
+    color: var(--muted);
+    transition: all 0.3s; cursor: default;
+  }
+  .step-pill.active { background: rgba(108,99,255,0.15); border-color: var(--accent); color: var(--accent); }
+  .step-pill.done { background: rgba(0,217,166,0.12); border-color: var(--accent2); color: var(--accent2); }
+  .step-pill.error { background: rgba(255,107,107,0.12); border-color: var(--danger); color: var(--danger); }
+  .step-arrow { color: var(--border); font-size: 18px; padding: 0 6px; flex-shrink: 0; }
+  .step-num { 
+    width: 20px; height: 20px; border-radius: 50%;
+    background: currentColor; color: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800;
+  }
+
+  /* ─── MAIN GRID ──────────────────────────────────── */
+  .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 780px) { .main-grid { grid-template-columns: 1fr; } }
+
+  /* ─── CARDS ──────────────────────────────────────── */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px;
+    transition: border-color 0.3s;
+  }
+  .card.highlight { border-color: rgba(108,99,255,0.4); }
+  .card-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 18px;
+  }
+  .card-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .card-icon.purple { background: rgba(108,99,255,0.2); }
+  .card-icon.teal   { background: rgba(0,217,166,0.2); }
+  .card-icon.red    { background: rgba(255,107,107,0.2); }
+  .card-icon.yellow { background: rgba(255,217,61,0.2); }
+  .card-title { font-size: 15px; font-weight: 700; }
+  .card-sub   { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+
+  /* ─── INPUTS ─────────────────────────────────────── */
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 12px;
+    padding: 32px 20px; text-align: center;
+    cursor: pointer; transition: all 0.3s; position: relative;
+    background: rgba(108,99,255,0.02);
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent); background: rgba(108,99,255,0.06);
+  }
+  .drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .drop-zone .dz-icon { font-size: 32px; margin-bottom: 10px; }
+  .drop-zone .dz-text { font-size: 14px; color: var(--muted); }
+  .drop-zone .dz-text strong { color: var(--accent); }
+  .drop-zone .dz-file {
+    margin-top: 10px; font-size: 12px; font-family: var(--mono);
+    color: var(--accent2); background: rgba(0,217,166,0.1);
+    padding: 4px 10px; border-radius: 6px; display: inline-block;
+  }
+
+  textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--mono); font-size: 12px;
+    padding: 14px; border-radius: 10px; resize: vertical;
+    min-height: 180px; outline: none; transition: border-color 0.2s;
+    line-height: 1.6;
+  }
+  textarea:focus { border-color: var(--accent); }
+
+  /* ─── BUTTONS ────────────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-radius: 10px; border: none;
+    font-family: var(--sans); font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; text-decoration: none;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #7d75ff; transform: translateY(-1px); }
+  .btn-teal { background: var(--accent2); color: #000; }
+  .btn-teal:hover:not(:disabled) { background: #00f0b8; transform: translateY(-1px); }
+  .btn-outline {
+    background: transparent; color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-outline:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-sm { padding: 7px 14px; font-size: 12px; }
+  .btn-full { width: 100%; justify-content: center; }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+
+  /* ─── SPINNER ────────────────────────────────────── */
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── STATUS MESSAGES ────────────────────────────── */
+  .status-box {
+    padding: 12px 16px; border-radius: 10px;
+    font-size: 13px; font-family: var(--mono);
+    margin-top: 12px; display: none;
+  }
+  .status-box.show { display: block; }
+  .status-box.success { background: rgba(0,217,166,0.1); border: 1px solid rgba(0,217,166,0.3); color: var(--accent2); }
+  .status-box.error   { background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); color: var(--danger); }
+  .status-box.info    { background: rgba(108,99,255,0.1); border: 1px solid rgba(108,99,255,0.3); color: var(--accent); }
+  .status-box.warn    { background: rgba(255,217,61,0.1); border: 1px solid rgba(255,217,61,0.3); color: var(--warn); }
+
+  /* ─── BROLL PLAN VIEW ────────────────────────────── */
+  .broll-item {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; margin-bottom: 12px;
+    transition: border-color 0.3s;
+  }
+  .broll-item:hover { border-color: var(--accent); }
+  .broll-item-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  }
+  .template-badge {
+    font-size: 10px; font-family: var(--mono); font-weight: 700;
+    padding: 3px 8px; border-radius: 6px; letter-spacing: 0.5px;
+  }
+  .tb-list   { background: rgba(108,99,255,0.2); color: var(--accent); }
+  .tb-tree   { background: rgba(0,217,166,0.2); color: var(--accent2); }
+  .tb-probl  { background: rgba(255,107,107,0.2); color: var(--danger); }
+  .time-range { font-size: 11px; font-family: var(--mono); color: var(--muted); }
+  .broll-title { font-size: 15px; font-weight: 700; }
+  .broll-text {
+    font-size: 12px; color: var(--muted); font-family: var(--mono);
+    margin: 6px 0; line-height: 1.5; font-style: italic;
+  }
+  .broll-reason {
+    font-size: 12px; color: var(--accent2);
+    padding: 8px 12px; background: rgba(0,217,166,0.05);
+    border-left: 2px solid var(--accent2); border-radius: 0 6px 6px 0;
+    margin-top: 8px;
+  }
+  .broll-points {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+  }
+  .point-tag {
+    font-size: 11px; font-family: var(--mono);
+    background: rgba(108,99,255,0.1); border: 1px solid rgba(108,99,255,0.2);
+    color: var(--accent); padding: 3px 8px; border-radius: 6px;
+  }
+
+  .skipped-list { margin-top: 16px; }
+  .skipped-item {
+    display: flex; gap: 8px; align-items: flex-start;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .skipped-label {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--muted); background: var(--border);
+    padding: 2px 6px; border-radius: 4px; white-space: nowrap; margin-top: 2px;
+  }
+  .skipped-text { color: var(--muted); font-family: var(--mono); font-size: 11px; line-height: 1.5; }
+  .skipped-reason { color: var(--warn); font-size: 11px; margin-top: 2px; }
+
+  /* ─── OUTPUT FILES ───────────────────────────────── */
+  .file-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .file-item {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .file-name { font-family: var(--mono); font-size: 11px; color: var(--accent2); word-break: break-all; }
+  .file-type { font-size: 11px; color: var(--muted); }
+  .file-ext {
+    display: inline-block; font-size: 9px; font-family: var(--mono);
+    padding: 2px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 1px;
+  }
+  .ext-mp4  { background: rgba(255,107,107,0.2); color: var(--danger); }
+  .ext-pptx { background: rgba(255,217,61,0.2); color: var(--warn); }
+  .ext-png  { background: rgba(0,217,166,0.2); color: var(--accent2); }
+  .ext-json { background: rgba(108,99,255,0.2); color: var(--accent); }
+
+  /* ─── VIDEO PLAYER ───────────────────────────────── */
+  .video-wrap {
+    background: #000; border-radius: 12px; overflow: hidden;
+    aspect-ratio: 16/9; margin-top: 16px;
+  }
+  video { width: 100%; height: 100%; object-fit: contain; }
+
+  /* ─── LOGS ───────────────────────────────────────── */
+  .log-area {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px;
+    font-family: var(--mono); font-size: 11px;
+    max-height: 200px; overflow-y: auto;
+    color: var(--muted); line-height: 1.8;
+  }
+  .log-entry { display: flex; gap: 8px; }
+  .log-time { color: var(--border); flex-shrink: 0; }
+  .log-ok    { color: var(--accent2); }
+  .log-err   { color: var(--danger); }
+  .log-info  { color: var(--accent); }
+  .log-warn  { color: var(--warn); }
+
+  /* ─── SECTION SPANS ──────────────────────────────── */
+  .section-label {
+    font-size: 11px; font-family: var(--mono); letter-spacing: 1px;
+    color: var(--muted); text-transform: uppercase; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .full-width { grid-column: 1 / -1; }
+
+  /* ─── SAMPLE TRANSCRIPT ──────────────────────────── */
+  .sample-btn {
+    font-size: 11px; font-family: var(--mono);
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); padding: 4px 10px; border-radius: 6px;
+    cursor: pointer; transition: all 0.2s; margin-top: 8px;
+  }
+  .sample-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Progress bar */
+  .progress-bar {
+    height: 3px; background: var(--border); border-radius: 2px; margin-top: 12px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px; transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  /* Tooltip */
+  [data-tip] { position: relative; cursor: help; }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    background: #1a1a2e; border: 1px solid var(--border);
+    color: var(--text); font-size: 11px; font-family: var(--mono);
+    padding: 6px 10px; border-radius: 6px; white-space: nowrap; z-index: 100;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+  .tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .tag {
+    font-size: 10px; font-family: var(--mono);
+    padding: 2px 8px; border-radius: 4px;
+    border: 1px solid var(--border); color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🎬</div>
+      <div>
+        <div class="logo-text">BRoll<span>AI</span></div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--mono)">Smart Video Explainer</div>
+      </div>
+    </div>
+    <div class="badge">POC v1.0</div>
+  </header>
+
+  <!-- API KEY -->
+  <div class="api-bar">
+    <label>GROQ API KEY</label>
+    <input type="password" id="apiKey" placeholder="gsk_..." autocomplete="off"/>
+    <span class="key-status" id="keyStatus">—</span>
+    <button class="btn btn-outline btn-sm" onclick="validateKey()">Verify</button>
+  </div>
+
+  <!-- PIPELINE INDICATOR -->
+  <div class="pipeline">
+    <div class="step-pill" id="pill-1"><div class="step-num">1</div> Upload Video</div>
+    <div class="step-arrow">›</div>
+    <div class="step-pill" id="pill-2"><div class="step-num">2</div> Transcript</div>
+    <div class="step-arrow">›</div>
+    <div class="step-pill" id="pill-3"><div class="step-num">3</div> B-Roll Plan</div>
+    <div class="step-arrow">›</div>
+    <div class="step-pill" id="pill-4"><div class="step-num">4</div> Gen Slides</div>
+    <div class="step-arrow">›</div>
+    <div class="step-pill" id="pill-5"><div class="step-num">5</div> Gen Clips</div>
+    <div class="step-arrow">›</div>
+    <div class="step-pill" id="pill-6"><div class="step-num">6</div> Final Video</div>
+  </div>
+
+  <div class="main-grid">
+
+    <!-- ── STEP 1: VIDEO UPLOAD ── -->
+    <div class="card" id="card-video">
+      <div class="card-header">
+        <div class="card-icon purple">📹</div>
+        <div>
+          <div class="card-title">Step 1 — Upload Video</div>
+          <div class="card-sub">MP4, MOV, AVI · min 5 min recommended</div>
+        </div>
+      </div>
+      <div class="drop-zone" id="videoDropZone">
+        <input type="file" id="videoFile" accept="video/*" onchange="handleVideoFile(this)"/>
+        <div class="dz-icon">🎞</div>
+        <div class="dz-text">Drop your video here or <strong>click to browse</strong></div>
+        <div class="dz-file" id="videoFileName" style="display:none"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="uploadVideo()" id="btnUploadVideo" disabled>
+          Upload Video
+        </button>
+      </div>
+      <div class="status-box" id="statusVideo"></div>
+      <div class="progress-bar" id="progVideo"><div class="progress-fill" id="progVideoFill"></div></div>
+    </div>
+
+    <!-- ── STEP 2: TRANSCRIPT ── -->
+    <div class="card" id="card-transcript">
+      <div class="card-header">
+        <div class="card-icon teal">📝</div>
+        <div>
+          <div class="card-title">Step 2 — Timestamped Transcript</div>
+          <div class="card-sub">JSON format with segment timestamps</div>
+        </div>
+      </div>
+      <textarea id="transcriptInput" placeholder='Paste your transcript JSON here...'></textarea>
+      <button class="sample-btn" onclick="loadSampleTranscript()">⚡ Load Sample Transcript</button>
+      <div class="btn-row">
+        <button class="btn btn-teal" onclick="uploadTranscript()" id="btnUploadTranscript">
+          Submit Transcript
+        </button>
+      </div>
+      <div class="status-box" id="statusTranscript"></div>
+    </div>
+
+    <!-- ── STEP 3: B-ROLL PLAN ── -->
+    <div class="card full-width" id="card-plan">
+      <div class="card-header">
+        <div class="card-icon purple">🧠</div>
+        <div>
+          <div class="card-title">Step 3 — AI B-Roll Planner</div>
+          <div class="card-sub">Groq LLM identifies best moments for visual explanation</div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="generateBrollPlan()" id="btnBrollPlan">
+          <span id="planBtnTxt">Generate B-Roll Plan</span>
+          <div class="spinner" id="planSpinner" style="display:none"></div>
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="downloadJson('broll_plan')" id="btnDlPlan" style="display:none">
+          ↓ Download JSON
+        </button>
+      </div>
+      <div class="status-box" id="statusPlan"></div>
+      <div id="brollPlanView" style="margin-top:20px; display:none"></div>
+    </div>
+
+    <!-- ── STEP 4: GENERATE SLIDES ── -->
+    <div class="card" id="card-slides">
+      <div class="card-header">
+        <div class="card-icon yellow">📊</div>
+        <div>
+          <div class="card-title">Step 4 — Generate PPT Slides</div>
+          <div class="card-sub">python-pptx creates branded infographic slides</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+        Generates PPTX files from the B-roll plan. Supports <strong>4-point list</strong>, 
+        <strong>decision tree</strong>, and <strong>problem → solution</strong> templates.
+      </p>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="generateSlides()" id="btnSlides">
+          <span id="slidesBtnTxt">Generate Slides</span>
+          <div class="spinner" id="slidesSpinner" style="display:none"></div>
+        </button>
+      </div>
+      <div class="status-box" id="statusSlides"></div>
+    </div>
+
+    <!-- ── STEP 5: GENERATE CLIPS ── -->
+    <div class="card" id="card-clips">
+      <div class="card-header">
+        <div class="card-icon teal">🎬</div>
+        <div>
+          <div class="card-title">Step 5 — Generate B-Roll Clips</div>
+          <div class="card-sub">PPTX → PNG → MP4 via LibreOffice + ffmpeg</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+        Converts each slide to a PNG image, then renders a <strong>4–10 second video clip</strong> 
+        timed to match the spoken segment.
+      </p>
+      <div class="btn-row">
+        <button class="btn btn-teal" onclick="generateClips()" id="btnClips">
+          <span id="clipsBtnTxt">Generate B-Roll Clips</span>
+          <div class="spinner" id="clipsSpinner" style="display:none"></div>
+        </button>
+      </div>
+      <div class="status-box" id="statusClips"></div>
+    </div>
+
+    <!-- ── STEP 6: FINAL VIDEO ── -->
+    <div class="card full-width" id="card-final">
+      <div class="card-header">
+        <div class="card-icon red">🎥</div>
+        <div>
+          <div class="card-title">Step 6 — Merge & Export Final Video</div>
+          <div class="card-sub">ffmpeg inserts B-roll at precise timestamps</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+        The original talking-head video is cut at each B-roll timestamp. 
+        Infographic clips are inserted at those moments, then the segments are concatenated 
+        into a single final video.
+      </p>
+      <div class="btn-row">
+        <button class="btn btn-danger" onclick="generateFinalVideo()" id="btnFinal">
+          <span id="finalBtnTxt">🚀 Generate Final Video</span>
+          <div class="spinner" id="finalSpinner" style="display:none"></div>
+        </button>
+      </div>
+      <div class="status-box" id="statusFinal"></div>
+      <div id="finalVideoWrap" style="display:none">
+        <div class="divider"></div>
+        <div class="section-label">Final Output</div>
+        <div class="video-wrap">
+          <video id="finalVideoPlayer" controls></video>
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <a id="downloadFinalBtn" class="btn btn-outline" download>↓ Download Final Video</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── OUTPUT FILES ── -->
+    <div class="card full-width" id="card-outputs">
+      <div class="card-header">
+        <div class="card-icon purple">📁</div>
+        <div>
+          <div class="card-title">Output Files</div>
+          <div class="card-sub">All generated assets</div>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-bottom:12px">
+        <button class="btn btn-outline btn-sm" onclick="refreshOutputs()">↻ Refresh</button>
+      </div>
+      <div id="outputFilesGrid" class="file-grid">
+        <div style="color:var(--muted);font-size:13px;font-family:var(--mono);grid-column:1/-1">
+          No output files yet.
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ACTIVITY LOG ── -->
+    <div class="card full-width">
+      <div class="card-header">
+        <div class="card-icon teal">📋</div>
+        <div>
+          <div class="card-title">Activity Log</div>
+          <div class="card-sub">Real-time pipeline events</div>
+        </div>
+      </div>
+      <div class="log-area" id="logArea">
+        <div class="log-entry">
+          <span class="log-time">[00:00]</span>
+          <span class="log-info">BRollAI initialized. Ready.</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end main-grid -->
+</div><!-- end app -->
+
+<script>
+const API = '';  // Same origin
+
+let state = {
+  videoId: null,
+  videoFilename: null,
+  videoDuration: null,
+  transcriptLoaded: false,
+  brollPlan: null,
+  slidesGenerated: false,
+  clipsGenerated: false,
+};
+
+// ─── LOGGING ──────────────────────────────────────────────────────────────────
+function log(msg, type='info') {
+  const area = document.getElementById('logArea');
+  const now = new Date();
+  const t = String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = `<span class="log-time">[${t}]</span><span class="log-${type}">${msg}</span>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+// ─── STATUS BOXES ─────────────────────────────────────────────────────────────
+function setStatus(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = `status-box show ${type}`;
+}
+function clearStatus(id) {
+  document.getElementById(id).className = 'status-box';
+}
+
+// ─── PILLS ────────────────────────────────────────────────────────────────────
+function setPill(n, state) { // state: active | done | error | ''
+  const el = document.getElementById(`pill-${n}`);
+  el.className = 'step-pill ' + state;
+}
+
+// ─── API KEY ──────────────────────────────────────────────────────────────────
+async function validateKey() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key.startsWith('gsk_')) {
+    document.getElementById('keyStatus').textContent = '✗ Invalid format';
+    document.getElementById('keyStatus').style.color = 'var(--danger)';
+    return;
+  }
+  document.getElementById('keyStatus').textContent = '✓ Key set';
+  document.getElementById('keyStatus').style.color = 'var(--accent2)';
+  log('Groq API key configured', 'ok');
+}
+
+// ─── VIDEO UPLOAD ─────────────────────────────────────────────────────────────
+function handleVideoFile(input) {
+  if (!input.files[0]) return;
+  const f = input.files[0];
+  const nameEl = document.getElementById('videoFileName');
+  nameEl.textContent = `${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`;
+  nameEl.style.display = 'inline-block';
+  document.getElementById('btnUploadVideo').disabled = false;
+  log(`Video selected: ${f.name}`, 'info');
+}
+
+async function uploadVideo() {
+  const input = document.getElementById('videoFile');
+  if (!input.files[0]) return;
+
+  const btn = document.getElementById('btnUploadVideo');
+  btn.disabled = true;
+  setPill(1, 'active');
+  setStatus('statusVideo', 'Uploading…', 'info');
+  document.getElementById('progVideoFill').style.width = '30%';
+  log('Uploading source video…', 'info');
+
+  const fd = new FormData();
+  fd.append('video', input.files[0]);
+
+  try {
+    const res = await fetch('/api/upload-video', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    state.videoId = data.video_id;
+    state.videoFilename = data.filename;
+    state.videoDuration = data.duration;
+    document.getElementById('progVideoFill').style.width = '100%';
+    setStatus('statusVideo', `✓ Uploaded · ID: ${data.video_id} · Duration: ${data.duration.toFixed(1)}s`, 'success');
+    setPill(1, 'done');
+    log(`Video uploaded — ID: ${data.video_id}, ${data.duration.toFixed(1)}s`, 'ok');
+  } catch(e) {
+    setStatus('statusVideo', '✗ ' + e.message, 'error');
+    setPill(1, 'error');
+    log('Video upload failed: ' + e.message, 'err');
+    btn.disabled = false;
+  }
+}
+
+// ─── TRANSCRIPT ───────────────────────────────────────────────────────────────
+const SAMPLE_TRANSCRIPT = {
+  "video_id": "sample_001",
+  "source_video": "sample.mp4",
+  "segments": [
+    {"id":"seg_001","start":2.0,"end":8.0,"text":"Hi everyone, welcome back to the channel. Today I want to talk about why small businesses struggle with software."},
+    {"id":"seg_002","start":8.5,"end":16.0,"text":"Most small business owners do not avoid software because they are lazy. They avoid it because software actually adds extra work instead of reducing it."},
+    {"id":"seg_003","start":16.5,"end":25.0,"text":"Think about it — a typical CRM forces you to fill out four screens just to log a phone call. That is more steps than just writing a sticky note."},
+    {"id":"seg_004","start":25.5,"end":34.0,"text":"A good system should reduce the number of steps, not create more screens to manage. If a tool makes you slower, it is not a tool. It is a burden."},
+    {"id":"seg_005","start":34.5,"end":44.0,"text":"The four biggest reasons businesses abandon software are: too much training required, data entry takes too long, the interface feels foreign, and there is no immediate benefit visible."},
+    {"id":"seg_006","start":44.5,"end":52.0,"text":"So what is the solution? Voice-first input. Natural language. Minimal friction. Software should feel like talking to a smart assistant, not filling a government form."},
+    {"id":"seg_007","start":52.5,"end":58.0,"text":"Thanks for watching. If this resonated with you, hit subscribe and I will see you next week."}
+  ]
+};
+
+function loadSampleTranscript() {
+  document.getElementById('transcriptInput').value = JSON.stringify(SAMPLE_TRANSCRIPT, null, 2);
+  log('Sample transcript loaded', 'info');
+}
+
+async function uploadTranscript() {
+  const raw = document.getElementById('transcriptInput').value.trim();
+  if (!raw) { setStatus('statusTranscript','Paste a transcript first','warn'); return; }
+
+  let data;
+  try { data = JSON.parse(raw); }
+  catch { setStatus('statusTranscript','Invalid JSON','error'); return; }
+
+  // Override video_id if we have one from upload
+  if (state.videoId) data.video_id = state.videoId;
+
+  setPill(2, 'active');
+  setStatus('statusTranscript', 'Submitting…', 'info');
+  log('Uploading transcript…', 'info');
+
+  try {
+    const res = await fetch('/api/upload-transcript', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    });
+    const resp = await res.json();
+    if (resp.error) throw new Error(resp.error);
+    if (!state.videoId) state.videoId = resp.video_id;
+    state.transcriptLoaded = true;
+    setStatus('statusTranscript', `✓ ${resp.segments} segments loaded · ID: ${resp.video_id}`, 'success');
+    setPill(2, 'done');
+    log(`Transcript submitted — ${resp.segments} segments`, 'ok');
+  } catch(e) {
+    setStatus('statusTranscript', '✗ ' + e.message, 'error');
+    setPill(2, 'error');
+    log('Transcript upload failed: ' + e.message, 'err');
+  }
+}
+
+// ─── B-ROLL PLAN ──────────────────────────────────────────────────────────────
+async function generateBrollPlan() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) { setStatus('statusPlan','Enter your Groq API key first','warn'); return; }
+  if (!state.videoId) { setStatus('statusPlan','Upload video & transcript first','warn'); return; }
+
+  setPill(3, 'active');
+  setStatus('statusPlan', '🧠 Analyzing transcript with Groq LLM…', 'info');
+  document.getElementById('planBtnTxt').textContent = 'Analyzing…';
+  document.getElementById('planSpinner').style.display = 'block';
+  document.getElementById('btnBrollPlan').disabled = true;
+  document.getElementById('brollPlanView').style.display = 'none';
+  log('Sending transcript to Groq for B-roll analysis…', 'info');
+
+  try {
+    const res = await fetch('/api/generate-broll-plan', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({video_id: state.videoId, groq_api_key: apiKey})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    state.brollPlan = data;
+    renderBrollPlan(data);
+    const n = data.broll_items?.length || 0;
+    const s = data.skipped_segments?.length || 0;
+    setStatus('statusPlan', `✓ ${n} B-roll moments selected · ${s} segments skipped`, 'success');
+    setPill(3, 'done');
+    document.getElementById('btnDlPlan').style.display = 'inline-flex';
+    log(`B-roll plan: ${n} items selected, ${s} skipped`, 'ok');
+  } catch(e) {
+    setStatus('statusPlan', '✗ ' + e.message, 'error');
+    setPill(3, 'error');
+    log('B-roll planning failed: ' + e.message, 'err');
+  } finally {
+    document.getElementById('planBtnTxt').textContent = 'Generate B-Roll Plan';
+    document.getElementById('planSpinner').style.display = 'none';
+    document.getElementById('btnBrollPlan').disabled = false;
+  }
+}
+
+function renderBrollPlan(plan) {
+  const view = document.getElementById('brollPlanView');
+  let html = '';
+
+  // Selected items
+  if (plan.broll_items?.length) {
+    html += `<div class="section-label">Selected B-Roll Moments (${plan.broll_items.length})</div>`;
+    for (const item of plan.broll_items) {
+      const tbClass = item.template_type === 'four_point_list' ? 'tb-list'
+                    : item.template_type === 'decision_tree' ? 'tb-tree' : 'tb-probl';
+      const tbLabel = item.template_type === 'four_point_list' ? '4-POINT LIST'
+                    : item.template_type === 'decision_tree' ? 'DECISION TREE' : 'PROBLEM→SOLUTION';
+      let extraHTML = '';
+      if (item.points) {
+        extraHTML = `<div class="broll-points">${item.points.map(p=>`<span class="point-tag">${p}</span>`).join('')}</div>`;
+      } else if (item.nodes) {
+        const n = item.nodes[0];
+        extraHTML = `<div class="broll-points"><span class="point-tag">Q: ${n.label}</span><span class="point-tag" style="color:var(--danger)">YES: ${n.yes}</span><span class="point-tag" style="color:var(--accent2)">NO: ${n.no}</span></div>`;
+      } else if (item.problem) {
+        extraHTML = `<div class="broll-points"><span class="point-tag" style="color:var(--danger)">⚠ ${item.problem}</span><span class="point-tag" style="color:var(--accent2)">✓ ${item.solution}</span></div>`;
+      }
+      html += `
+      <div class="broll-item">
+        <div class="broll-item-header">
+          <span class="template-badge ${tbClass}">${tbLabel}</span>
+          <span class="time-range">⏱ ${item.start}s – ${item.end}s</span>
+        </div>
+        <div class="broll-title">${item.title}</div>
+        <div class="broll-text">"${item.selected_text}"</div>
+        ${extraHTML}
+        <div class="broll-reason">💡 ${item.reason_for_selection}</div>
+      </div>`;
+    }
+  }
+
+  // Skipped
+  if (plan.skipped_segments?.length) {
+    html += `<div class="section-label" style="margin-top:20px">Skipped Segments (${plan.skipped_segments.length})</div>`;
+    html += `<div class="skipped-list">`;
+    for (const s of plan.skipped_segments) {
+      html += `<div class="skipped-item">
+        <span class="skipped-label">SKIP</span>
+        <div>
+          <div class="skipped-text">"${s.text}"</div>
+          <div class="skipped-reason">↳ ${s.reason}</div>
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  view.innerHTML = html;
+  view.style.display = 'block';
+}
+
+// ─── GENERATE SLIDES ─────────────────────────────────────────────────────────
+async function generateSlides() {
+  if (!state.videoId) { setStatus('statusSlides','Complete earlier steps first','warn'); return; }
+  setPill(4, 'active');
+  setStatus('statusSlides', 'Generating PPTX slides…', 'info');
+  document.getElementById('slidesBtnTxt').textContent = 'Generating…';
+  document.getElementById('slidesSpinner').style.display = 'block';
+  document.getElementById('btnSlides').disabled = true;
+  log('Generating PPT slides from templates…', 'info');
+
+  try {
+    const res = await fetch('/api/generate-ppt', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({video_id: state.videoId})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    const ok = data.generated.filter(g => !g.error).length;
+    const fail = data.generated.filter(g => g.error).length;
+    setStatus('statusSlides', `✓ ${ok} slides generated${fail ? ` · ${fail} errors` : ''}`, ok ? 'success' : 'error');
+    setPill(4, 'done');
+    state.slidesGenerated = true;
+    log(`PPT generation: ${ok} slides created`, 'ok');
+    refreshOutputs();
+  } catch(e) {
+    setStatus('statusSlides', '✗ ' + e.message, 'error');
+    setPill(4, 'error');
+    log('Slide generation failed: ' + e.message, 'err');
+  } finally {
+    document.getElementById('slidesBtnTxt').textContent = 'Generate Slides';
+    document.getElementById('slidesSpinner').style.display = 'none';
+    document.getElementById('btnSlides').disabled = false;
+  }
+}
+
+// ─── GENERATE CLIPS ──────────────────────────────────────────────────────────
+async function generateClips() {
+  if (!state.videoId) { setStatus('statusClips','Complete earlier steps first','warn'); return; }
+  setPill(5, 'active');
+  setStatus('statusClips', 'Converting slides → PNG → MP4…', 'info');
+  document.getElementById('clipsBtnTxt').textContent = 'Converting…';
+  document.getElementById('clipsSpinner').style.display = 'block';
+  document.getElementById('btnClips').disabled = true;
+  log('Converting slides to video clips via LibreOffice + ffmpeg…', 'info');
+
+  try {
+    const res = await fetch('/api/generate-broll-clips', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({video_id: state.videoId})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    const ok = data.clips.filter(c => !c.error).length;
+    const fail = data.clips.filter(c => c.error).length;
+    setStatus('statusClips', `✓ ${ok} clips generated${fail ? ` · ${fail} errors` : ''}`, ok ? 'success' : 'error');
+    setPill(5, ok > 0 ? 'done' : 'error');
+    if (ok > 0) state.clipsGenerated = true;
+    log(`B-roll clips: ${ok} clips ready`, 'ok');
+    refreshOutputs();
+  } catch(e) {
+    setStatus('statusClips', '✗ ' + e.message, 'error');
+    setPill(5, 'error');
+    log('Clip generation failed: ' + e.message, 'err');
+  } finally {
+    document.getElementById('clipsBtnTxt').textContent = 'Generate B-Roll Clips';
+    document.getElementById('clipsSpinner').style.display = 'none';
+    document.getElementById('btnClips').disabled = false;
+  }
+}
+
+// ─── FINAL VIDEO ─────────────────────────────────────────────────────────────
+async function generateFinalVideo() {
+  if (!state.videoId || !state.videoFilename) {
+    setStatus('statusFinal','Upload source video first','warn'); return;
+  }
+  setPill(6, 'active');
+  setStatus('statusFinal', 'Merging B-roll with original video via ffmpeg…', 'info');
+  document.getElementById('finalBtnTxt').textContent = 'Merging…';
+  document.getElementById('finalSpinner').style.display = 'block';
+  document.getElementById('btnFinal').disabled = true;
+  log('Running ffmpeg merge pipeline…', 'info');
+
+  try {
+    const res = await fetch('/api/generate-final-video', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({video_id: state.videoId, video_filename: state.videoFilename})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    const url = `/api/output/${data.final_video}`;
+    document.getElementById('finalVideoPlayer').src = url;
+    const dlBtn = document.getElementById('downloadFinalBtn');
+    dlBtn.href = url;
+    dlBtn.download = data.final_video;
+    document.getElementById('finalVideoWrap').style.display = 'block';
+    setStatus('statusFinal', `✓ Final video ready: ${data.final_video}`, 'success');
+    setPill(6, 'done');
+    log(`Final video exported: ${data.final_video}`, 'ok');
+    refreshOutputs();
+  } catch(e) {
+    setStatus('statusFinal', '✗ ' + e.message, 'error');
+    setPill(6, 'error');
+    log('Final video merge failed: ' + e.message, 'err');
+  } finally {
+    document.getElementById('finalBtnTxt').textContent = '🚀 Generate Final Video';
+    document.getElementById('finalSpinner').style.display = 'none';
+    document.getElementById('btnFinal').disabled = false;
+  }
+}
+
+// ─── OUTPUT FILES ─────────────────────────────────────────────────────────────
+async function refreshOutputs() {
+  try {
+    const res = await fetch('/api/outputs');
+    const data = await res.json();
+    const grid = document.getElementById('outputFilesGrid');
+    if (!data.files.length) {
+      grid.innerHTML = `<div style="color:var(--muted);font-size:13px;font-family:var(--mono);grid-column:1/-1">No output files yet.</div>`;
+      return;
+    }
+    grid.innerHTML = data.files.map(f => {
+      const ext = f.split('.').pop().toLowerCase();
+      const extClass = {mp4:'ext-mp4',pptx:'ext-pptx',png:'ext-png',json:'ext-json'}[ext] || '';
+      const icon = {mp4:'🎬',pptx:'📊',png:'🖼',json:'📋'}[ext] || '📄';
+      const isMedia = ['mp4','png'].includes(ext);
+      return `<div class="file-item">
+        <span class="file-ext ${extClass}">.${ext.toUpperCase()}</span>
+        <span class="file-name">${icon} ${f}</span>
+        <a href="/api/output/${f}" download class="btn btn-outline btn-sm" style="margin-top:4px">↓ Download</a>
+        ${isMedia && ext==='mp4' ? `<video src="/api/output/${f}" controls style="width:100%;margin-top:6px;border-radius:6px;max-height:100px"></video>` : ''}
+        ${ext==='png' ? `<img src="/api/output/${f}" style="width:100%;margin-top:6px;border-radius:6px;object-fit:cover;max-height:80px">` : ''}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    log('Could not refresh outputs: ' + e.message, 'warn');
+  }
+}
+
+function downloadJson(type) {
+  if (!state.brollPlan) return;
+  const blob = new Blob([JSON.stringify(state.brollPlan, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${type}_${state.videoId}.json`;
+  a.click();
+}
+
+// Drag and drop
+const dz = document.getElementById('videoDropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const input = document.getElementById('videoFile');
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    handleVideoFile(input);
+  }
+});
+
+// Init
+refreshOutputs();
+</script>
+</body>
+</html>

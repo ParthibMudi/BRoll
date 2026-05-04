@@ -1,0 +1,15 @@
+#!/bin/bash
+echo "╔══════════════════════════════════════╗"
+echo "║       BRollAI — Starting Server      ║"
+echo "╚══════════════════════════════════════╝"
+echo ""
+echo "Checking dependencies..."
+python3 -c "import flask, groq, pptx, PIL; print('✓ All Python packages OK')"
+ffmpeg -version 2>&1 | head -1 && echo "✓ ffmpeg OK"
+ffprobe -version 2>&1 | head -1 && echo "✓ ffprobe OK"
+libreoffice --version 2>&1 | head -1 && echo "✓ LibreOffice OK"
+echo ""
+echo "Starting Flask server on http://localhost:5000"
+echo ""
+cd "$(dirname "$0")"
+python3 app.py

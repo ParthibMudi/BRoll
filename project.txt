@@ -1,0 +1,449 @@
+﻿Create an application (web or any ui):
+Welcome, Future Builders
+We are exploring a product idea that helps people create professional short videos without needing
+advanced editing skills.
+A raw talking-head video often feels plain. Even if the speaker has a good point, the video may not
+feel polished because there are no supporting visuals.
+Good short videos often use:
+- Text highlights
+- Infographic slides
+- Simple explainers
+- Lists
+- Decision trees
+- Before/after visuals
+- B-roll inserts
+Your assignment is to build a proof-of-concept that takes a transcript or script, strategically identifies
+where visual explanation is useful, generates infographic-style PPT slides for those selected
+moments, converts those slides into video clips, and merges them with the original video.
+The goal is not to create random slides.
+The goal is to prove that the right visual, shown at the right moment, can make a spoken idea easier
+to understand.
+
+
+Project Context
+The larger product vision is:
+User records or uploads a video
+↓
+System creates a timestamped transcript
+↓
+System identifies where visual support is actually needed
+↓
+AI suggests infographic B-roll concepts
+↓
+PPT templates are filled programmatically
+↓
+Slides are converted into image/video clips
+↓
+B-roll clips are inserted into the original video
+↓
+A more professional final video is generated
+Your group is responsible for the visual explanation layer.
+You are not expected to build the AI interviewer or the Descript-style word editor.
+Your focus is only:
+
+
+Timestamped transcript/script
+↓
+Strategic B-roll selection
+↓
+B-roll concept
+↓
+PPT slide
+↓
+B-roll video
+↓
+Merged final video
+
+
+Recommended Tech Stack
+Please use this stack unless you have a strong reason to use another one:
+Backend / Script:
+Node.js or Python
+PPT generation:
+pptxgenjs if using Node.js
+or python-pptx if using Python
+Video processing:
+ffmpeg
+Slide-to-image/video:
+LibreOffice / PowerPoint export / screenshot export / image conversion
+Frontend:
+Optional. A script-based demo is acceptable.
+Storage:
+Local file system
+You are free to use another stack if you are more comfortable with it.
+The main requirement is not the stack.
+The main requirement is:
+Can your system convert selected spoken ideas into useful infographic B-roll and merge them into
+the video?
+
+
+Objective
+Build a working POC where the system can:
+
+
+1. Take a timestamped transcript or script
+2. Decide which sentences or groups of sentences actually need B-roll
+3. Skip ordinary sentences that do not need visual explanation
+4. Identify 1–3 strong B-roll-worthy moments
+5. Choose a suitable infographic template
+6. Generate PPT slides programmatically
+7. Convert those slides into image/video clips
+8. Insert or overlay the B-roll into the original video
+9. Produce a final combined video
+The final demo should prove one key thing:
+The system can turn important spoken ideas into visual explainers automatically.
+
+Important B-Roll Selection Principle
+Not every sentence needs an explainer.
+The goal is not to create one slide for every line of transcript.
+The goal is to identify strategic moments where a visual can make the spoken idea easier to
+understand, remember, or feel more polished.
+A good B-roll moment usually appears when the speaker is saying something like:
+- A key insight
+- A list of reasons
+- A comparison
+- A process
+- A decision point
+- A before/after idea
+- A problem/solution explanation
+- A concept that may be easier to understand visually
+A sentence may not need B-roll if it is:
+- Just a greeting
+- A personal filler line
+- A transition sentence
+- Repetition of an earlier point
+- Already clear without visual support
+- Too small or weak to deserve a slide
+The B-roll agent should be selective.
+For a 30–60 second demo clip, it is enough to identify:
+1–3 strong B-roll moments
+
+
+A good final video should still feel like a talking-head video supported by visuals, not like a slideshow
+replacing the speaker.
+
+
+Input Requirement
+Use any spoken video longer than 5 minutes.
+For the demo, you may use a selected 30–60 second portion.
+The video should contain at least one idea that can be explained visually.
+Examples:
+- Why people avoid making videos
+- Why small businesses struggle with software
+- Why hotel staff prefer voice over forms
+- Why CRMs feel heavy for solo sellers
+- Why students struggle to complete coding projects
+
+
+Part 1: Timestamped Transcript or Script
+What to Prepare
+Prepare a transcript or script with timestamps.
+For Group 3, sentence-level timestamps are acceptable.
+Example:
+{
+"video_id": "sample_001",
+"source_video": "sample.mp4",
+"segments": [
+{
+"id": "seg_001",
+"start": 12.0,
+"end": 18.0,
+"text": "Most small business owners do not avoid software because they are lazy. They avoid it
+because software adds extra work."
+},
+{
+"id": "seg_002",
+"start": 18.5,
+"end": 26.0,
+"text": "A good system should reduce the number of steps, not create more screens to manage."
+}
+]
+}
+Each segment should have:
+
+
+- Segment ID
+- Start timestamp
+- End timestamp
+- Spoken text
+
+
+Part 2: Strategic B-Roll Concept Generator
+What to Build
+Create a system or agent that reads the transcript and identifies where visual support would improve
+the video.
+The system should first decide:
+Does this sentence or group of sentences actually need visual explanation?
+Only if the answer is yes should it create a B-roll item.
+The system should decide:
+- Which section deserves visual explanation
+- Which sections should be skipped
+- What idea should be shown visually
+- Which template fits the idea
+- What text should appear on the slide
+- When the B-roll should appear
+- Why this moment was selected
+For the POC, support only 2 templates:
+1. Four-point list
+2. Decision tree
+You may add a third template if time permits:
+3. Problem → Solution
+
+
+Expected Input
+{
+"video_id": "sample_001",
+"segments": [
+{
+"id": "seg_001",
+"start": 8.0,
+"end": 11.0,
+"text": "Hi, today I want to talk about why small businesses struggle with software."
+},
+{
+"id": "seg_002",
+"start": 12.0,
+
+
+"end": 18.0,
+"text": "Most small business owners do not avoid software because they are lazy. They avoid it
+because software adds extra work."
+},
+{
+"id": "seg_003",
+"start": 18.5,
+"end": 26.0,
+"text": "A good system should reduce the number of steps, not create more screens to manage."
+}
+]
+}
+
+
+Expected B-Roll Output
+{
+"video_id": "sample_001",
+"broll_items": [
+{
+"id": "broll_001",
+"start": 12.0,
+"end": 18.0,
+"source_segment_ids": ["seg_002"],
+"selected_text": "Most small business owners do not avoid software because they are lazy. They
+avoid it because software adds extra work.",
+"template_type": "four_point_list",
+"title": "Why Software Feels Heavy",
+"points": [
+"Extra steps",
+"More screens",
+"More training",
+"Less natural workflow"
+],
+"reason_for_selection": "This is a core insight and can be understood faster through a simple
+visual list."
+},
+{
+"id": "broll_002",
+"start": 18.5,
+"end": 26.0,
+"source_segment_ids": ["seg_003"],
+"selected_text": "A good system should reduce the number of steps, not create more screens to
+manage.",
+"template_type": "decision_tree",
+"title": "Does This System Reduce Work?",
+"nodes": [
+{
+
+
+"label": "Adds more steps?",
+"yes": "Feels like burden",
+"no": "Feels useful"
+}
+],
+"reason_for_selection": "This segment explains a decision point, so a decision-tree visual fits
+well."
+}
+],
+"skipped_segments": [
+{
+"segment_id": "seg_001",
+"text": "Hi, today I want to talk about why small businesses struggle with software.",
+"reason": "Introductory line; does not need visual explanation."
+}
+]
+}
+
+
+Part 3: PPT Template Generator
+What to Build
+Create PPT templates that can be filled programmatically.
+Minimum templates:
+1. Four-point list template
+2. Decision-tree template
+The PPT generation should take JSON as input and replace text dynamically.
+Example input:
+{
+"template_type": "four_point_list",
+"title": "Why Voice Works Better",
+"points": [
+"Natural for staff",
+"Less training needed",
+"Faster updates",
+"Better adoption"
+]
+}
+Expected output:
+Generated PPT slide with:
+- Title
+- Four points
+- Clean visual layout
+
+
+For the decision-tree template, expected input may look like:
+{
+"template_type": "decision_tree",
+"title": "Does This System Reduce Work?",
+"nodes": [
+{
+"label": "Adds more steps?",
+"yes": "Feels like burden",
+"no": "Feels useful"
+}
+]
+}
+Expected output:
+Generated PPT slide with:
+- Title
+- One decision question
+- Yes branch
+- No branch
+The slide does not need to be extremely beautiful, but it should look clear and professional enough
+for a demo.
+
+
+Part 4: Convert PPT to B-Roll Video
+What to Build
+Convert the generated PPT slide into an image or video clip.
+Acceptable approaches:
+- Export slide as image
+- Export slide as short video
+- Convert PPT to PDF/image and then to video
+- Use ffmpeg to create a 5–8 second video clip from the slide image
+For example:
+PPT slide → PNG image → 6-second MP4 clip
+This is good enough for the POC.
+
+
+Part 5: Merge B-Roll with Original Video
+What to Build
+Use ffmpeg or another video processing tool to combine the B-roll with the original video.
+You may choose either approach:
+
+
+Option 1:
+Insert B-roll full-screen between talking-head sections
+Option 2:
+Overlay B-roll on top of the original video for a few seconds
+Option 3:
+Show talking-head video on one side and B-roll on the other side
+For a 2-day POC, the simplest approach is acceptable:
+Original talking video
+↓
+B-roll image/video appears full-screen for selected timestamp
+↓
+Original talking video continues
+Small jump cuts are acceptable.
+The important thing is that B-roll appears at the right moment and supports the spoken idea.
+
+Suggested Project Structure
+A simple script-based structure is acceptable:
+input/
+sample.mp4
+transcript.json
+output/
+broll_plan.json
+generated_slide_001.pptx
+generated_slide_001.png
+
+
+broll_001.mp4
+final_video.mp4
+If using backend APIs, possible endpoints:
+POST /upload-video
+Uploads original video
+POST /upload-transcript
+Uploads timestamped transcript
+POST /generate-broll-plan
+Creates B-roll concept JSON
+POST /generate-ppt
+Creates PPT slide from B-roll JSON
+POST /generate-final-video
+Creates final video with B-roll
+A command-line script is also acceptable if the output is clear.
+
+
+
+Expected System Flow
+The final demo should follow this flow:
+1. Open the app or run the script
+2. Load/select a sample video
+3. Load timestamped transcript/script
+4. System reviews the transcript
+5. System skips ordinary sentences
+6. System selects 1–3 B-roll-worthy moments
+7. System generates B-roll JSON
+8. System creates PPT slides from templates
+9. System converts PPT slides into image/video clips
+10. System merges B-roll with original video
+11. Final video is shown or exported
+
+Expected Inputs and Outputs
+Input 1: Source Video
+sample.mp4
+A spoken video longer than 5 minutes. Final demo may use a 30–60 second selected portion.
+Input 2: Timestamped Transcript
+{
+"video_id": "sample_001",
+"source_video": "sample.mp4",
+"segments": [
+{
+"id": "seg_001",
+"start": 12.0,
+"end": 18.0,
+"text": "Most small business owners avoid software because it adds extra work."
+}
+]
+}
+Output 1: B-Roll Plan JSON
+{
+"video_id": "sample_001",
+"broll_items": [
+{
+
+
+"id": "broll_001",
+"start": 12.0,
+"end": 18.0,
+"template_type": "four_point_list",
+"title": "Why Software Feels Heavy",
+"points": [
+"Extra steps",
+"More screens",
+"More training",
+"Less natural workflow"
+],
+"reason_for_selection": "This is a core insight and visual list makes it easier to understand."
+}
+],
+"skipped_segments": [
+{
+"segment_id": "seg_001",
+"reason": "Introductory sentence; no visual explanation needed."
+}
+]
+}
+Output 2: Generated PPT
+generated_broll_001.pptx
+Output 3: B-Roll Clip
+broll_001.mp4
+Output 4: Final Video
+final_video_with_broll.mp4
