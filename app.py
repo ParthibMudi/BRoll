@@ -689,4 +689,390 @@ def pptx_to_png(pptx_path: str, png_path: str, item: dict = None):
 
     raise RuntimeError("LibreOffice not found and no item data supplied for Pillow fallback.")
 
+def png_to_mp4(png_path: str, mp4_path: str, duration: float = 6.0):
+    """Convert PNG to MP4 clip using ffmpeg."""
+    ffmpeg = find_media_tool(["ffmpeg"])
+    if not ffmpeg:
+        raise RuntimeError("ffmpeg not found. Install it and add it to PATH.")
+    cmd = [
+        ffmpeg, "-y",
+        "-loop", "1",
+        "-i", png_path,
+        "-c:v", "libx264",
+        "-t", str(duration),
+        "-pix_fmt", "yuv420p",
+        "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2",
+        "-r", "25",
+        mp4_path
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg PNG->MP4 failed: {result.stderr[-400:]}")
 
+
+# ─── VIDEO MERGING ───────────────────────────────────────────────────────────
+
+def find_media_tool(tool_names: list[str]) -> str | None:
+    # Allow explicit override via environment variables.
+    env_map = {
+        "ffprobe": os.environ.get("FFPROBE_PATH", ""),
+        "ffmpeg": os.environ.get("FFMPEG_PATH", ""),
+    }
+    for name in tool_names:
+        env_path = env_map.get(name, "")
+        if env_path and os.path.exists(env_path):
+            return env_path
+
+    for name in tool_names:
+        path = shutil.which(name)
+        if path:
+            return path
+
+    if os.name == "nt":
+        candidates = []
+        program_dirs = [
+            os.environ.get("ProgramFiles", ""),
+            os.environ.get("ProgramFiles(x86)", ""),
+            os.environ.get("LOCALAPPDATA", ""),
+            os.environ.get("USERPROFILE", ""),
+        ]
+        roots = ["", "ffmpeg", "tools\\ffmpeg", "ffmpeg\\bin", "ffmpeg\\ffmpeg", "Gyan\\ffmpeg\\bin"]
+        for base in program_dirs:
+            if not base:
+                continue
+            for root in roots:
+                for name in tool_names:
+                    candidates.append(os.path.join(base, root, f"{name}.exe"))
+                    candidates.append(os.path.join(base, root, name, f"{name}.exe"))
+                    candidates.append(os.path.join(base, root, "bin", f"{name}.exe"))
+
+        for candidate in candidates:
+            if os.path.exists(candidate):
+                return candidate
+
+    return None
+
+
+def get_video_duration(video_path: str) -> float:
+    def parse_duration_from_ffmpeg(stderr: str) -> float:
+        for line in stderr.splitlines():
+            if "Duration:" in line:
+                duration_text = line.split("Duration:")[1].split(",")[0].strip()
+                hours, minutes, seconds = duration_text.split(":")
+                return float(hours) * 3600 + float(minutes) * 60 + float(seconds)
+        raise ValueError("Unable to parse duration from ffmpeg output")
+
+    ffprobe_path = find_media_tool(["ffprobe"])
+    if ffprobe_path:
+        result = subprocess.run(
+            [ffprobe_path, "-v", "quiet", "-print_format", "json", "-show_format", video_path],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0 and result.stdout:
+            try:
+                info = json.loads(result.stdout)
+                return float(info["format"]["duration"])
+            except Exception:
+                pass
+
+    ffmpeg_path = find_media_tool(["ffmpeg"])
+    if ffmpeg_path:
+        result = subprocess.run(
+            [ffmpeg_path, "-hide_banner", "-i", video_path],
+            capture_output=True, text=True
+        )
+        if result.stderr:
+            try:
+                return parse_duration_from_ffmpeg(result.stderr)
+            except ValueError:
+                pass
+
+    raise RuntimeError(
+        "Unable to find ffprobe or ffmpeg. Install FFmpeg and ensure its executables are on PATH, or set FFMPEG_PATH / FFPROBE_PATH to the executable location."
+    )
+
+
+def merge_broll_into_video(source_video: str, broll_items: list,
+                            broll_clips: dict, output_path: str):
+    """
+    Insert B-roll clips at specified timestamps in the source video.
+    broll_clips: {broll_id: mp4_path}
+    Strategy: Cut source video at each b-roll timestamp, insert clip, continue.
+    """
+    duration = get_video_duration(source_video)
+    
+    # Sort by start time
+    items = sorted(broll_items, key=lambda x: x["start"])
+    
+    segments = []
+    prev_end = 0.0
+    
+    for item in items:
+        start = float(item["start"])
+        end   = float(item["end"])
+        broll_id = item["id"]
+        
+        if broll_id not in broll_clips:
+            continue
+        
+        # Segment before this b-roll
+        if start > prev_end:
+            segments.append({"type": "original", "start": prev_end, "end": start})
+        
+        # B-roll segment
+        segments.append({"type": "broll", "clip": broll_clips[broll_id],
+                          "duration": end - start})
+        prev_end = end
+
+    # Remaining original video
+    if prev_end < duration:
+        segments.append({"type": "original", "start": prev_end, "end": duration})
+
+    ffmpeg = find_media_tool(["ffmpeg"])
+    if not ffmpeg:
+        raise RuntimeError("ffmpeg not found. Install it and ensure it is on PATH.")
+
+    tmp_dir = tempfile.mkdtemp()
+    concat_list = []
+
+    try:
+        for i, seg in enumerate(segments):
+            clip_path = os.path.join(tmp_dir, f"seg_{i:03d}.mp4")
+
+            if seg["type"] == "original":
+                seg_dur = seg["end"] - seg["start"]
+                if seg_dur <= 0:
+                    continue
+                # Use stream copy — no re-encode, completes in seconds regardless of duration
+                cmd = [
+                    ffmpeg, "-y",
+                    "-ss", str(seg["start"]),
+                    "-i", source_video,
+                    "-t", str(seg_dur),
+                    "-c", "copy",
+                    "-avoid_negative_ts", "make_zero",
+                    clip_path
+                ]
+            else:
+                # B-roll clip — already encoded MP4, just trim to duration
+                cmd = [
+                    ffmpeg, "-y",
+                    "-i", seg["clip"],
+                    "-t", str(seg["duration"]),
+                    "-c", "copy",
+                    clip_path
+                ]
+
+            # Stream copy is fast even for very long segments; 60s is more than enough
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            if result.returncode == 0 and os.path.exists(clip_path):
+                concat_list.append(clip_path)
+            else:
+                # Log but don't abort — skip bad segments
+                print(f"[warn] seg {i} failed: {result.stderr[-200:]}", flush=True)
+
+        if not concat_list:
+            raise RuntimeError("No video segments generated")
+
+        list_file = os.path.join(tmp_dir, "concat.txt")
+        with open(list_file, "w") as f:
+            for p in concat_list:
+                f.write(f"file '{p}'\n")
+
+        # Final pass: concat + re-encode once to normalize resolution/codec across all segments
+        cmd = [
+            ffmpeg, "-y",
+            "-f", "concat", "-safe", "0",
+            "-i", list_file,
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+            "-c:a", "aac", "-ar", "44100",
+            "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2",
+            "-r", "25",
+            "-movflags", "+faststart",
+            output_path
+        ]
+        # Full re-encode of the whole video — allow generous time
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+        if result.returncode != 0:
+            raise RuntimeError(f"Final concat failed: {result.stderr[-500:]}")
+
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+# ─── FLASK ROUTES ─────────────────────────────────────────────────────────────
+
+@app.route("/")
+def index():
+    return send_file(os.path.join(BASE_DIR, "static", "index.html"))
+
+@app.route("/api/health")
+def health():
+    return jsonify({"status": "ok"})
+
+@app.route("/api/upload-video", methods=["POST"])
+def upload_video():
+    if "video" not in request.files:
+        return jsonify({"error": "No video file"}), 400
+
+    f = request.files["video"]
+    if not f.filename:
+        return jsonify({"error": "No video filename provided"}), 400
+
+    vid_id = str(uuid.uuid4())[:8]
+    filename = f"video_{vid_id}.mp4"
+    path = os.path.join(INPUT_DIR, filename)
+    f.save(path)
+
+    try:
+        duration = get_video_duration(path)
+    except Exception as e:
+        if os.path.exists(path):
+            os.remove(path)
+        return jsonify({"error": f"Unable to read video duration: {str(e)}"}), 500
+
+    return jsonify({"video_id": vid_id, "filename": filename, "duration": duration})
+
+@app.route("/api/upload-transcript", methods=["POST"])
+def upload_transcript():
+    data = request.get_json()
+    if not data or "segments" not in data:
+        return jsonify({"error": "Invalid transcript JSON"}), 400
+    
+    vid_id = data.get("video_id", str(uuid.uuid4())[:8])
+    path = os.path.join(INPUT_DIR, f"transcript_{vid_id}.json")
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+    
+    return jsonify({"video_id": vid_id, "segments": len(data["segments"])})
+
+@app.route("/api/generate-broll-plan", methods=["POST"])
+def generate_broll_plan():
+    data = request.get_json()
+    api_key = data.get("groq_api_key", "")
+    video_id = data.get("video_id", "")
+    
+    if not api_key:
+        return jsonify({"error": "Groq API key required"}), 400
+    
+    transcript_path = os.path.join(INPUT_DIR, f"transcript_{video_id}.json")
+    if not os.path.exists(transcript_path):
+        return jsonify({"error": "Transcript not found"}), 404
+    
+    with open(transcript_path) as f:
+        transcript = json.load(f)
+    
+    try:
+        plan = analyze_transcript_with_groq(transcript, api_key)
+        plan_path = os.path.join(OUTPUT_DIR, f"broll_plan_{video_id}.json")
+        with open(plan_path, "w") as f:
+            json.dump(plan, f, indent=2)
+        return jsonify(plan)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/generate-ppt", methods=["POST"])
+def generate_ppt_route():
+    data = request.get_json()
+    video_id = data.get("video_id", "")
+    
+    plan_path = os.path.join(OUTPUT_DIR, f"broll_plan_{video_id}.json")
+    if not os.path.exists(plan_path):
+        return jsonify({"error": "B-roll plan not found"}), 404
+    
+    with open(plan_path) as f:
+        plan = json.load(f)
+    
+    generated = []
+    for item in plan.get("broll_items", []):
+        broll_id = item["id"]
+        pptx_path = os.path.join(OUTPUT_DIR, f"{broll_id}.pptx")
+        try:
+            generate_ppt(item, pptx_path)
+            generated.append({"id": broll_id, "pptx": f"{broll_id}.pptx"})
+        except Exception as e:
+            generated.append({"id": broll_id, "error": str(e)})
+    
+    return jsonify({"generated": generated})
+
+@app.route("/api/generate-broll-clips", methods=["POST"])
+def generate_broll_clips():
+    data = request.get_json()
+    video_id = data.get("video_id", "")
+
+    plan_path = os.path.join(OUTPUT_DIR, f"broll_plan_{video_id}.json")
+    if not os.path.exists(plan_path):
+        return jsonify({"error": "B-roll plan not found"}), 404
+
+    with open(plan_path) as f:
+        plan = json.load(f)
+
+    clips = []
+    for item in plan.get("broll_items", []):
+        broll_id  = item["id"]
+        pptx_path = os.path.join(OUTPUT_DIR, f"{broll_id}.pptx")
+        png_path  = os.path.join(OUTPUT_DIR, f"{broll_id}.png")
+        mp4_path  = os.path.join(OUTPUT_DIR, f"{broll_id}.mp4")
+
+        raw_dur = float(item["end"]) - float(item["start"])
+        # Auto-detect minute-unit timestamps (very small values)
+        if raw_dur < 2.0:
+            raw_dur = raw_dur * 60
+        duration = max(4.0, min(raw_dur, 10.0))
+
+        try:
+            if not os.path.exists(pptx_path):
+                generate_ppt(item, pptx_path)
+            # Pass item so Pillow fallback works without LibreOffice
+            pptx_to_png(pptx_path, png_path, item=item)
+            png_to_mp4(png_path, mp4_path, duration)
+            clips.append({"id": broll_id, "mp4": f"{broll_id}.mp4", "duration": duration})
+        except Exception as e:
+            clips.append({"id": broll_id, "error": str(e)})
+
+    return jsonify({"clips": clips})
+
+@app.route("/api/generate-final-video", methods=["POST"])
+def generate_final_video():
+    data = request.get_json()
+    video_id = data.get("video_id", "")
+    video_filename = data.get("video_filename", "")
+    
+    plan_path = os.path.join(OUTPUT_DIR, f"broll_plan_{video_id}.json")
+    source_path = os.path.join(INPUT_DIR, video_filename)
+    
+    if not os.path.exists(plan_path):
+        return jsonify({"error": "B-roll plan not found"}), 404
+    if not os.path.exists(source_path):
+        return jsonify({"error": "Source video not found"}), 404
+    
+    with open(plan_path) as f:
+        plan = json.load(f)
+    
+    broll_clips = {}
+    for item in plan.get("broll_items", []):
+        mp4_path = os.path.join(OUTPUT_DIR, f"{item['id']}.mp4")
+        if os.path.exists(mp4_path):
+            broll_clips[item["id"]] = mp4_path
+    
+    if not broll_clips:
+        return jsonify({"error": "No B-roll clips found. Generate clips first."}), 400
+    
+    output_path = os.path.join(OUTPUT_DIR, f"final_video_{video_id}.mp4")
+    try:
+        merge_broll_into_video(source_path, plan["broll_items"], broll_clips, output_path)
+        return jsonify({"final_video": f"final_video_{video_id}.mp4"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/output/<filename>")
+def serve_output(filename):
+    return send_from_directory(OUTPUT_DIR, filename)
+
+@app.route("/api/outputs")
+def list_outputs():
+    files = os.listdir(OUTPUT_DIR)
+    return jsonify({"files": sorted(files)})
+
+if _name_ == "_main_":
+    app.run(debug=True, port=5000)
