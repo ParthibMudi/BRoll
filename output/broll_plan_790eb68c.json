@@ -1,0 +1,68 @@
+{
+  "video_id": "790eb68c",
+  "broll_items": [
+    {
+      "id": "broll_001",
+      "start": 80.0,
+      "end": 113.0,
+      "source_segment_ids": [
+        "seg_004"
+      ],
+      "selected_text": "Defining AWS VPC (Virtual Private Cloud) and Azure VNet as tools for creating isolated, scalable networks.",
+      "template_type": "problem_solution",
+      "title": "Private Cloud Solutions",
+      "problem": "Need for isolated and scalable networks in cloud computing",
+      "solution": "AWS VPC and Azure VNet for creating private, scalable networks",
+      "reason_for_selection": "Visual explanation of private cloud solutions will help viewers understand the concept better"
+    },
+    {
+      "id": "broll_002",
+      "start": 201.0,
+      "end": 226.0,
+      "source_segment_ids": [
+        "seg_009"
+      ],
+      "selected_text": "Security implementation using Security Groups, NACLs, or NSGs to block vulnerabilities and DOS attacks.",
+      "template_type": "four_point_list",
+      "title": "Security Measures",
+      "points": [
+        "Security Groups",
+        "NACLs",
+        "NSGs",
+        "Firewall Configuration"
+      ],
+      "reason_for_selection": "Listing security measures in a visual format will make it easier for viewers to understand and remember"
+    },
+    {
+      "id": "broll_003",
+      "start": 251.0,
+      "end": 260.0,
+      "source_segment_ids": [
+        "seg_010"
+      ],
+      "selected_text": "Handling remote access and communication between regions or data centers using VPNs and private connections.",
+      "template_type": "decision_tree",
+      "title": "Remote Access Options",
+      "nodes": [
+        {
+          "label": "Do you need secure remote access?",
+          "yes": "Use VPN",
+          "no": "Use Private Connections"
+        }
+      ],
+      "reason_for_selection": "Visual decision tree will help viewers decide on the best remote access option"
+    }
+  ],
+  "skipped_segments": [
+    {
+      "segment_id": "seg_001",
+      "text": "Introduction to network configuration in cloud computing; comparison of tools in AWS and Azure.",
+      "reason": "Simple introduction, no key insights or lists that require visual explanation"
+    },
+    {
+      "segment_id": "seg_002",
+      "text": "The importance of networking alongside storage and computation for hosting secure and scalable websites.",
+      "reason": "Simple statement, no lists or comparisons that require visual explanation"
+    }
+  ]
+}
