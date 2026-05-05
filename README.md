@@ -30,8 +30,8 @@ cd broll_app
 # Install Python dependencies
 pip install -r requirements.txt
 
-# Make startup script executable
-chmod +x start.sh
+# runing
+python app.py
 ```
 
 ## Running
@@ -39,7 +39,7 @@ chmod +x start.sh
 ```bash
 ./start.sh
 # OR
-python3 app.py
+python app.py
 ```
 
 Open http://localhost:5000 in your browser.
